@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { searchMovies, getImageUrl } from '../services/tmdb';
 import { useAuth } from '../context/AuthContext';
 
-export default function Header({ onMovieSelect }) {
+export default function Header({ onMovieSelect, watchedMovies = [] }) {
     const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
@@ -189,6 +189,14 @@ export default function Header({ onMovieSelect }) {
                                         {movie.vote_average > 0 && (
                                             <span className="text-[#444] text-xs font-mono flex items-center gap-1">
                                                 ★ {movie.vote_average.toFixed(1)}
+                                            </span>
+                                        )}
+                                        {watchedMovies.some(m => m.id === movie.id) && (
+                                            <span className="ml-auto text-green-500/80 text-xs font-medium flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Added
                                             </span>
                                         )}
                                     </div>

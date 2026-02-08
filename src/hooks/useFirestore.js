@@ -20,6 +20,7 @@ export function useFirestore() {
     const { user } = useAuth();
     const [movies, setMovies] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     // Load from localStorage for unauthenticated users
     useEffect(() => {
@@ -46,8 +47,9 @@ export function useFirestore() {
             }));
             setMovies(movieData);
             setLoading(false);
-        }, (error) => {
-            console.error('Firestore error:', error);
+        }, (err) => {
+            console.error('Firestore error:', err);
+            setError(err);
             setLoading(false);
         });
 
@@ -80,9 +82,10 @@ export function useFirestore() {
         try {
             const movieRef = doc(db, 'users', user.uid, 'movies', String(movie.id));
             await setDoc(movieRef, movieWithTimestamp);
-        } catch (error) {
-            console.error('Error adding movie to Firestore:', error);
-            throw error;
+        } catch (err) {
+            console.error('Error adding movie to Firestore:', err);
+            setError(err);
+            throw err;
         }
     };
 
@@ -96,11 +99,12 @@ export function useFirestore() {
         try {
             const movieRef = doc(db, 'users', user.uid, 'movies', String(movieId));
             await deleteDoc(movieRef);
-        } catch (error) {
-            console.error('Error removing movie from Firestore:', error);
-            throw error;
+        } catch (err) {
+            console.error('Error removing movie from Firestore:', err);
+            setError(err);
+            throw err;
         }
     };
 
-    return [movies, addMovie, removeMovie, loading];
+    return [movies, addMovie, removeMovie, loading, error];
 }
