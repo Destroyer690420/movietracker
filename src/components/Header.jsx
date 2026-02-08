@@ -23,7 +23,7 @@ export default function Header({ onMovieSelect, watchedMovies = [] }) {
         debounceRef.current = setTimeout(async () => {
             setIsLoading(true);
             const movies = await searchMovies(query);
-            setResults(movies.slice(0, 6)); // Limit to 6 for cleaner list
+            setResults(movies); // Show all results
             setIsLoading(false);
             setShowResults(true);
         }, 400);
@@ -166,7 +166,7 @@ export default function Header({ onMovieSelect, watchedMovies = [] }) {
 
                 {/* Dropdown Results */}
                 {showResults && results.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-[#222] shadow-2xl z-50 animate-enter">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-[#222] shadow-2xl z-50 animate-enter max-h-[60vh] overflow-y-auto">
                         {results.map((movie) => (
                             <button
                                 key={movie.id}
