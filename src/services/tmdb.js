@@ -2,9 +2,9 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 /**
- * Search movies from TMDB API
+ * Search movies and TV shows from TMDB API
  * @param {string} query - Search query
- * @returns {Promise<Array>} - Array of movie results
+ * @returns {Promise<Array>} - Array of results (movies and TV shows)
  */
 export async function searchMovies(query) {
     if (!query || query.trim().length < 2) {
@@ -13,7 +13,7 @@ export async function searchMovies(query) {
 
     try {
         const response = await fetch(
-            `${TMDB_BASE_URL}/search/movie?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=1`,
+            `${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=1`,
             {
                 headers: {
                     'Authorization': `Bearer ${import.meta.env.VITE_TMDB_TOKEN}`,
@@ -23,11 +23,23 @@ export async function searchMovies(query) {
         );
 
         if (!response.ok) {
-            throw new Error('Failed to fetch movies');
+            throw new Error('Failed to fetch results');
         }
 
         const data = await response.json();
-        return data.results || [];
+
+        // Filter to only movies and TV shows, normalize the data
+        return (data.results || [])
+            .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
+            .map(item => ({
+                ...item,
+                // Normalize title (movies use 'title', TV shows use 'name')
+                title: item.title || item.name,
+                // Normalize release date
+                release_date: item.release_date || item.first_air_date,
+                // Keep media type for display
+                media_type: item.media_type,
+            }));
     } catch (error) {
         console.error('TMDB Search Error:', error);
         return [];

@@ -186,6 +186,9 @@ export default function Header({ onMovieSelect, watchedMovies = [] }) {
                                         <span className="text-[#444] text-xs font-mono">
                                             {movie.release_date ? movie.release_date.split('-')[0] : 'Unknown'}
                                         </span>
+                                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${movie.media_type === 'tv' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                            {movie.media_type === 'tv' ? 'TV' : 'Movie'}
+                                        </span>
                                         {movie.vote_average > 0 && (
                                             <span className="text-[#444] text-xs font-mono flex items-center gap-1">
                                                 ★ {movie.vote_average.toFixed(1)}
