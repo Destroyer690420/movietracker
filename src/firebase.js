@@ -3,7 +3,12 @@
 // Firebase Console > Project Settings > Your apps > Firebase SDK snippet
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import {
+    getFirestore,
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -18,17 +23,21 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore
-export const db = getFirestore(app);
+// Initialize Firestore with offline persistence.
+// initializeFirestore throws if Firestore has already been started, which can
+// happen when the module is re-evaluated by HMR, so fall back to getFirestore.
+let db;
+try {
+    db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager(),
+        }),
+    });
+} catch {
+    db = getFirestore(app);
+}
 
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-        console.warn('Firestore persistence failed: Multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-        console.warn('Firestore persistence not supported in this browser');
-    }
-});
+export { db };
 
 // Initialize Auth
 export const auth = getAuth(app);
