@@ -4,7 +4,7 @@ import { useFirestore } from './hooks/useFirestore';
 import SearchBar from './components/SearchBar';
 import Sidebar from './components/Sidebar';
 import MovieGrid from './components/MovieGrid';
-import RatingModal from './components/RatingModal';
+import AddModal from './components/AddModal';
 import DetailModal from './components/DetailModal';
 import FavoritesStrip from './components/FavoritesStrip';
 import Toast from './components/Toast';
@@ -13,7 +13,9 @@ import { MAX_FAVORITES, filterMovies, makeMovieKey, sortMovies } from './lib/mov
 function AppContent() {
     const [movies, addMovie, removeMovie, updateMovie, loading, error, notice, clearNotice] = useFirestore();
     const [selectedMovie, setSelectedMovie] = useState(null);
+    const [addMode, setAddMode] = useState('new');
     const [detailMovie, setDetailMovie] = useState(null);
+    const [statusFilter, setStatusFilter] = useState('watched');
     const [filters, setFilters] = useState({ search: '', rating: 'all', media: 'all' });
     const [sort, setSort] = useState('recent');
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -50,25 +52,36 @@ function AppContent() {
         toastTimer.current = setTimeout(() => setToast(null), 5000);
     }, []);
 
+    const statusCounts = useMemo(() => ({
+        watched: movies.filter(movie => movie.status === 'watched').length,
+        watchlist: movies.filter(movie => movie.status === 'watchlist').length,
+        dropped: movies.filter(movie => movie.status === 'dropped').length,
+    }), [movies]);
+
     const visibleMovies = useMemo(
-        () => sortMovies(filterMovies(movies, filters), sort),
-        [movies, filters, sort]
+        () => sortMovies(filterMovies(movies, { ...filters, status: statusFilter }), sort),
+        [movies, filters, statusFilter, sort]
+    );
+
+    const viewMovies = useMemo(
+        () => movies.filter(movie => movie.status === statusFilter),
+        [movies, statusFilter]
     );
 
     const favorites = useMemo(
-        () => movies.filter(movie => movie.isFavorite).slice(0, MAX_FAVORITES),
+        () => movies.filter(movie => movie.status === 'watched' && movie.isFavorite).slice(0, MAX_FAVORITES),
         [movies]
     );
 
     const summary = useMemo(() => {
-        if (movies.length === 0) {
+        if (viewMovies.length === 0) {
             return null;
         }
-        const rated = movies.filter(movie => movie.rating > 0);
+        const rated = viewMovies.filter(movie => movie.rating > 0);
         const average = rated.length
             ? (rated.reduce((total, movie) => total + movie.rating, 0) / rated.length).toFixed(1)
             : null;
-        const fiveStars = movies.filter(movie => movie.rating === 5).length;
+        const fiveStars = viewMovies.filter(movie => movie.rating === 5).length;
         const parts = [];
         if (average) {
             parts.push(`avg ${average}★`);
@@ -77,22 +90,40 @@ function AppContent() {
             parts.push(`${fiveStars} five-star`);
         }
         return parts.join(' · ');
-    }, [movies]);
+    }, [viewMovies]);
 
     const handleMovieSelect = (movie) => {
         const key = makeMovieKey(movie.mediaType, movie.id);
-        if (movies.some(existing => existing.key === key)) {
-            showToast('Already in your collection.');
+        const existing = movies.find(item => item.key === key);
+        if (existing) {
+            showToast(existing.status === 'watchlist'
+                ? 'Already in your watchlist. Open it there to mark it as watched.'
+                : 'Already in your collection.');
             return;
         }
+        setAddMode('new');
         setSelectedMovie(movie);
     };
 
-    const handleAddMovie = async (movieWithRating) => {
+    const handleAddWatched = async (movieWithRating) => {
         try {
-            await addMovie(movieWithRating);
+            await addMovie({
+                ...movieWithRating,
+                status: 'watched',
+                watchedAt: Date.now(),
+            });
             setSelectedMovie(null);
-            showToast(`Added "${movieWithRating.title}" to your collection.`);
+            showToast(`Added "${movieWithRating.title}" to your watched collection.`);
+        } catch {
+            showToast('Could not add that title. Check your connection.');
+        }
+    };
+
+    const handleAddWatchlist = async (movie) => {
+        try {
+            await addMovie({ ...movie, status: 'watchlist', rating: 0 });
+            setSelectedMovie(null);
+            showToast(`Added "${movie.title}" to your watchlist.`);
         } catch {
             showToast('Could not add that title. Check your connection.');
         }
@@ -111,6 +142,48 @@ function AppContent() {
     const handleUpdate = async (movieKey, changes) => {
         try {
             await updateMovie(movieKey, changes);
+        } catch {
+            showToast('Could not save that change.');
+        }
+    };
+
+    const handleMarkWatched = (movie) => {
+        setAddMode('watched');
+        setSelectedMovie(movie);
+    };
+
+    const handleConfirmWatched = async (movieWithRating) => {
+        try {
+            await updateMovie(movieWithRating.key, {
+                status: 'watched',
+                rating: movieWithRating.rating,
+                watchedAt: Date.now(),
+                addedAt: Date.now(),
+                isFavorite: false,
+            });
+            setSelectedMovie(null);
+            setDetailMovie(null);
+            showToast(`Marked "${movieWithRating.title}" as watched.`);
+        } catch {
+            showToast('Could not save that change.');
+        }
+    };
+
+    const handleMoveToWatchlist = async (movie) => {
+        try {
+            await updateMovie(movie.key, { status: 'watchlist', isFavorite: false });
+            setDetailMovie(null);
+            showToast(`Moved "${movie.title}" to your watchlist.`);
+        } catch {
+            showToast('Could not save that change.');
+        }
+    };
+
+    const handleMoveToDropped = async (movie) => {
+        try {
+            await updateMovie(movie.key, { status: 'dropped', isFavorite: false });
+            setDetailMovie(null);
+            showToast(`Dropped "${movie.title}".`);
         } catch {
             showToast('Could not save that change.');
         }
@@ -147,12 +220,15 @@ function AppContent() {
                 open={sidebarOpen}
                 closing={sidebarClosing}
                 onClose={closeSidebar}
+                statusFilter={statusFilter}
+                onStatusChange={setStatusFilter}
+                statusCounts={statusCounts}
                 filters={filters}
                 onFiltersChange={setFilters}
                 sort={sort}
                 onSortChange={setSort}
                 summary={summary}
-                total={movies.length}
+                total={viewMovies.length}
                 movies={movies}
                 onNotice={showToast}
             />
@@ -170,6 +246,10 @@ function AppContent() {
                         </svg>
                     </button>
                     <span className="text-[11px] uppercase tracking-[0.2em] text-[#555]">Watchlist</span>
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-[#2f2f2f]">/</span>
+                    <span className="text-[11px] uppercase tracking-[0.2em] text-[#aaa]">
+                        {statusFilter === 'watched' ? 'Watched' : statusFilter === 'watchlist' ? 'To watch' : 'Dropped'}
+                    </span>
                 </div>
 
                 {error && (
@@ -192,25 +272,35 @@ function AppContent() {
                     watchedMovies={movies}
                 />
 
-                <FavoritesStrip
-                    favorites={favorites}
-                    onSelect={setDetailMovie}
-                />
+                {statusFilter === 'watched' && (
+                    <FavoritesStrip
+                        favorites={favorites}
+                        onSelect={setDetailMovie}
+                    />
+                )}
 
                 <MovieGrid
                     movies={visibleMovies}
                     onRemoveMovie={handleRemoveMovie}
                     onSelectMovie={setDetailMovie}
                     onToggleFavorite={handleToggleFavorite}
-                    isFiltered={movies.length > 0 && visibleMovies.length === 0}
+                    onMarkWatched={handleMarkWatched}
+                    isFiltered={viewMovies.length > 0 && visibleMovies.length === 0}
+                    emptyMessage={statusFilter === 'watchlist'
+                        ? 'Nothing planned yet. Search for a film and choose "Just add to my watchlist".'
+                        : statusFilter === 'dropped'
+                            ? 'Nothing dropped. Good.'
+                            : undefined}
                 />
             </div>
 
             {selectedMovie && (
-                <RatingModal
+                <AddModal
                     movie={selectedMovie}
+                    mode={addMode}
                     onClose={() => setSelectedMovie(null)}
-                    onConfirm={handleAddMovie}
+                    onAddWatched={addMode === 'watched' ? handleConfirmWatched : handleAddWatched}
+                    onAddWatchlist={handleAddWatchlist}
                 />
             )}
 
@@ -221,6 +311,9 @@ function AppContent() {
                     onUpdate={handleUpdate}
                     onRemove={handleRemoveMovie}
                     onToggleFavorite={handleToggleFavorite}
+                    onMarkWatched={handleMarkWatched}
+                    onMoveToWatchlist={handleMoveToWatchlist}
+                    onMoveToDropped={handleMoveToDropped}
                 />
             )}
 

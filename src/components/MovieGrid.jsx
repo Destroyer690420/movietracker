@@ -1,6 +1,6 @@
 import MovieCard from './MovieCard';
 
-export default function MovieGrid({ movies, onRemoveMovie, onSelectMovie, onToggleFavorite, isFiltered }) {
+export default function MovieGrid({ movies, onRemoveMovie, onSelectMovie, onToggleFavorite, onMarkWatched, isFiltered, emptyMessage }) {
     if (movies.length === 0) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center -mt-20 px-6">
@@ -10,9 +10,9 @@ export default function MovieGrid({ movies, onRemoveMovie, onSelectMovie, onTogg
                     </p>
                     <div className="w-8 h-[1px] bg-[#222] mx-auto mb-4" />
                     <p className="text-[#444] text-xs font-light">
-                        {isFiltered
+                        {emptyMessage || (isFiltered
                             ? 'No titles match your filters.'
-                            : 'Your collection awaits its first masterpiece.'}
+                            : 'Your collection awaits its first masterpiece.')}
                     </p>
                 </div>
             </div>
@@ -30,6 +30,7 @@ export default function MovieGrid({ movies, onRemoveMovie, onSelectMovie, onTogg
                             onRemove={onRemoveMovie}
                             onSelect={onSelectMovie}
                             onToggleFavorite={onToggleFavorite}
+                            onMarkWatched={onMarkWatched}
                         />
                     ))}
                 </div>

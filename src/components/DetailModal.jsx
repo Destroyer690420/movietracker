@@ -6,7 +6,7 @@ import { detectRegion, getDetails, getImageUrl } from '../services/tmdb';
  * Shows metadata from TMDB, where it can be streamed, the cast, and lets you
  * change the rating, pin it as a favourite or remove it.
  */
-export default function DetailModal({ movie, onClose, onUpdate, onRemove, onToggleFavorite }) {
+export default function DetailModal({ movie, onClose, onUpdate, onRemove, onToggleFavorite, onMarkWatched, onMoveToWatchlist, onMoveToDropped }) {
     const [details, setDetails] = useState(null);
     const [providers, setProviders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -303,19 +303,31 @@ export default function DetailModal({ movie, onClose, onUpdate, onRemove, onTogg
 
                     {/* Actions */}
                     <div className="mt-10 pt-6 border-t border-[#161616] flex flex-wrap items-center gap-3">
-                        <button
-                            onClick={() => onToggleFavorite?.(movie)}
-                            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-light tracking-wide transition-all border ${
-                                movie.isFavorite
-                                    ? 'bg-white text-black border-white'
-                                    : 'bg-transparent text-[#777] hover:text-white border-[#222] hover:border-[#444]'
-                            }`}
-                        >
-                            <svg className="w-4 h-4" fill={movie.isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.48 3.5l2.31 4.68 5.17.75-3.74 3.64.88 5.15-4.62-2.43-4.62 2.43.88-5.15L3.99 8.93l5.17-.75L11.48 3.5z" />
-                            </svg>
-                            {movie.isFavorite ? 'Pinned' : 'Pin as favourite'}
-                        </button>
+                        {movie.status !== 'watched' ? (
+                            <button
+                                onClick={() => onMarkWatched?.(movie)}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-300 hover:text-white text-xs font-light tracking-wide border border-emerald-400/30 hover:border-emerald-400/50 transition-all"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Mark as watched
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => onToggleFavorite?.(movie)}
+                                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-light tracking-wide transition-all border ${
+                                    movie.isFavorite
+                                        ? 'bg-white text-black border-white'
+                                        : 'bg-transparent text-[#777] hover:text-white border-[#222] hover:border-[#444]'
+                                }`}
+                            >
+                                <svg className="w-4 h-4" fill={movie.isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.48 3.5l2.31 4.68 5.17.75-3.74 3.64.88 5.15-4.62-2.43-4.62 2.43.88-5.15L3.99 8.93l5.17-.75L11.48 3.5z" />
+                                </svg>
+                                {movie.isFavorite ? 'Pinned' : 'Pin as favourite'}
+                            </button>
+                        )}
 
                         <a
                             href={`https://www.themoviedb.org/${movie.mediaType}/${movie.id}`}
@@ -325,6 +337,24 @@ export default function DetailModal({ movie, onClose, onUpdate, onRemove, onTogg
                         >
                             Open on TMDB
                         </a>
+
+                        {movie.status !== 'watchlist' && (
+                            <button
+                                onClick={() => onMoveToWatchlist?.(movie)}
+                                className="text-[11px] font-light tracking-wide text-[#555] hover:text-white transition-colors"
+                            >
+                                Move to watchlist
+                            </button>
+                        )}
+
+                        {movie.status !== 'dropped' && (
+                            <button
+                                onClick={() => onMoveToDropped?.(movie)}
+                                className="text-[11px] font-light tracking-wide text-[#555] hover:text-white transition-colors"
+                            >
+                                Drop
+                            </button>
+                        )}
 
                         <button
                             onClick={() => onRemove?.(movie.key)}

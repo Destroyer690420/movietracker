@@ -92,9 +92,9 @@ check('enrichedAt preserved', roundTrip.enrichedAt, 1700000000001);
 
 console.log('\nSorting and filtering');
 const list = [
-    { key: 'movie_1', id: 1, mediaType: 'movie', title: 'B Movie', year: 2001, rating: 2, addedAt: 3, genres: ['Drama'], director: 'X' },
-    { key: 'movie_2', id: 2, mediaType: 'movie', title: 'A Movie', year: 1999, rating: 5, addedAt: 2, genres: ['Horror'], director: 'Y' },
-    { key: 'tv_3', id: 3, mediaType: 'tv', title: 'C Show', year: 2020, rating: 0, addedAt: 1, genres: [], director: null },
+    { key: 'movie_1', id: 1, mediaType: 'movie', title: 'B Movie', year: 2001, rating: 2, addedAt: 3, genres: ['Drama'], director: 'X', status: 'watched' },
+    { key: 'movie_2', id: 2, mediaType: 'movie', title: 'A Movie', year: 1999, rating: 5, addedAt: 2, genres: ['Horror'], director: 'Y', status: 'watched' },
+    { key: 'tv_3', id: 3, mediaType: 'tv', title: 'C Show', year: 2020, rating: 0, addedAt: 1, genres: [], director: null, status: 'watched' },
 ];
 check('recent sorts by addedAt desc', sortMovies(list, 'recent').map(m => m.title), ['B Movie', 'A Movie', 'C Show']);
 check('rating desc puts unrated last', sortMovies(list, 'rating-desc').map(m => m.title), ['A Movie', 'B Movie', 'C Show']);
@@ -107,6 +107,27 @@ check('filter 5 stars', filterMovies(list, { rating: '5' }).map(m => m.title), [
 check('filter by title', filterMovies(list, { search: 'b mov' }).map(m => m.title), ['B Movie']);
 check('filter by director', filterMovies(list, { search: 'y' }).map(m => m.title), ['A Movie']);
 
+console.log('\nStatus', {
+    watched: 'default',
+    watchlist: 'planned',
+    dropped: 'dropped',
+});
+check('old documents default to watched', normalizeMovie({ id: 1, title: 'Old' }).status, 'watched');
+check('watchlist status survives normalisation', normalizeMovie({ id: 1, title: 'Planned', status: 'watchlist' }).status, 'watchlist');
+check('unknown status falls back to watched', normalizeMovie({ id: 1, title: 'Odd', status: 'huh' }).status, 'watched');
+check('watchedAt survives normalisation', normalizeMovie({ id: 1, title: 'Seen', watchedAt: 1700000000000 }).watchedAt, 1700000000000);
+check('watchedAt stays null when absent', normalizeMovie({ id: 1, title: 'Seen' }).watchedAt, null);
+
+const withStatuses = [
+    ...list,
+    { key: 'movie_4', id: 4, mediaType: 'movie', title: 'Planned Film', rating: 0, addedAt: 4, status: 'watchlist' },
+    { key: 'movie_5', id: 5, mediaType: 'movie', title: 'Bad Film', rating: 1, addedAt: 5, status: 'dropped' },
+];
+check('filter watched only', filterMovies(withStatuses).map(m => m.title), ['B Movie', 'A Movie', 'C Show']);
+check('filter watchlist only', filterMovies(withStatuses, { status: 'watchlist' }).map(m => m.title), ['Planned Film']);
+check('filter dropped only', filterMovies(withStatuses, { status: 'dropped' }).map(m => m.title), ['Bad Film']);
+check('filter all statuses', filterMovies(withStatuses, { status: 'all' }).length, 5);
+
 console.log('\nCSV escaping');
 const csv = toCsv([{
     title: 'Snakes, "Planes" & Trains', mediaType: 'movie', year: 2020, rating: 3,
@@ -114,6 +135,8 @@ const csv = toCsv([{
 }]);
 check('commas and quotes escaped', csv.split('\r\n')[1].startsWith('"Snakes, ""Planes"" & Trains"'), true);
 check('director with comma escaped', csv.includes('"A, B"'), true);
+check('CSV has a Status column', csv.split('\r\n')[0].includes('Status'), true);
+check('CSV has a Watched At column', csv.split('\r\n')[0].includes('Watched At'), true);
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

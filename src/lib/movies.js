@@ -10,6 +10,19 @@
 /** How many films can be pinned as a favourite (Letterboxd allows four). */
 export const MAX_FAVORITES = 4;
 
+/** The buckets a title can live in. */
+export const STATUS_OPTIONS = [
+    { id: 'watched', label: 'Watched' },
+    { id: 'watchlist', label: 'Watchlist' },
+    { id: 'dropped', label: 'Dropped' },
+];
+
+export const DEFAULT_STATUS = 'watched';
+
+export function normalizeStatus(value) {
+    return STATUS_OPTIONS.some(option => option.id === value) ? value : DEFAULT_STATUS;
+}
+
 export const SORT_OPTIONS = [
     { id: 'recent', label: 'Recently added' },
     { id: 'rating-desc', label: 'Highest rated' },
@@ -105,6 +118,9 @@ export function normalizeMovie(input) {
         rating: Math.min(5, Math.max(0, rating)),
         voteAverage: input.voteAverage ?? input.vote_average ?? null,
         isFavorite: Boolean(input.isFavorite),
+        // Old documents have no status, so they are all treated as watched.
+        status: normalizeStatus(input.status),
+        watchedAt: toFiniteNumber(input.watchedAt, null),
         addedAt: toFiniteNumber(input.addedAt, Date.now()),
         // Enrichment, filled in lazily when a title's details are opened.
         runtime: input.runtime ?? null,
@@ -161,15 +177,18 @@ export function sortMovies(movies, sortId = 'recent') {
 }
 
 /**
- * Filter titles by search term, media type and rating threshold.
+ * Filter titles by status, search term, media type and rating threshold.
  * @param {Array} movies
- * @param {{search?: string, rating?: string, media?: string}} filters
+ * @param {{status?: string, search?: string, rating?: string, media?: string}} filters
  * @returns {Array}
  */
-export function filterMovies(movies, { search = '', rating = 'all', media = 'all' } = {}) {
+export function filterMovies(movies, { status = 'watched', search = '', rating = 'all', media = 'all' } = {}) {
     const term = search.trim().toLowerCase();
 
     return movies.filter((movie) => {
+        if (status !== 'all' && movie.status !== status) {
+            return false;
+        }
         if (media !== 'all' && movie.mediaType !== media) {
             return false;
         }
@@ -235,6 +254,7 @@ export function toCsv(movies) {
     const headers = [
         'Title',
         'Media Type',
+        'Status',
         'Year',
         'Your Rating',
         'TMDB Rating',
@@ -244,6 +264,7 @@ export function toCsv(movies) {
         'Runtime (min)',
         'Favourite',
         'Added At',
+        'Watched At',
         'TMDB ID',
         'TMDB URL',
     ];
@@ -259,6 +280,7 @@ export function toCsv(movies) {
     const rows = movies.map((movie) => [
         movie.title,
         movie.mediaType,
+        movie.status,
         movie.year ?? '',
         movie.rating > 0 ? movie.rating : '',
         movie.voteAverage ?? '',
@@ -268,6 +290,7 @@ export function toCsv(movies) {
         movie.runtime ?? '',
         movie.isFavorite ? 'yes' : 'no',
         movie.addedAt ? new Date(movie.addedAt).toISOString() : '',
+        movie.watchedAt ? new Date(movie.watchedAt).toISOString() : '',
         movie.id,
         `https://www.themoviedb.org/${movie.mediaType}/${movie.id}`,
     ].map(escapeCell).join(','));

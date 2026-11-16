@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/auth';
-import { MEDIA_FILTERS, RATING_FILTERS, SORT_OPTIONS } from '../lib/movies';
+import { MEDIA_FILTERS, RATING_FILTERS, SORT_OPTIONS, STATUS_OPTIONS } from '../lib/movies';
 import DataActions from './DataActions';
 
 /**
@@ -14,6 +14,9 @@ export default function Sidebar({
     open,
     closing,
     onClose,
+    statusFilter,
+    onStatusChange,
+    statusCounts,
     filters,
     onFiltersChange,
     sort,
@@ -105,6 +108,48 @@ export default function Sidebar({
                 </div>
 
                 <div className="flex-1 px-6 py-6">
+                    {/* View switcher */}
+                    <section className="mb-9">
+                        <p className="text-[9px] uppercase tracking-[0.2em] text-[#3d3d3d] mb-4">View</p>
+                        <div className="flex flex-col gap-1">
+                            {STATUS_OPTIONS.map(option => {
+                                const active = statusFilter === option.id;
+                                const count = statusCounts?.[option.id] || 0;
+                                return (
+                                    <button
+                                        key={option.id}
+                                        onClick={() => onStatusChange(option.id)}
+                                        className={`w-full flex items-center justify-between px-3 py-2.5 text-xs font-light tracking-wide border transition-colors ${
+                                            active
+                                                ? 'bg-white/10 text-white border-white/25'
+                                                : 'bg-transparent text-[#666] hover:text-white border-transparent hover:border-[#222]'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2.5">
+                                            {option.id === 'watchlist' && (
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            )}
+                                            {option.id === 'watched' && (
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                            {option.id === 'dropped' && (
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            )}
+                                            {option.label}
+                                        </span>
+                                        <span className="font-mono text-[10px] text-[#555]">{count}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+
                     {/* Profile */}
                     <section>
                         <p className="text-[9px] uppercase tracking-[0.2em] text-[#3d3d3d] mb-4">Profile</p>
